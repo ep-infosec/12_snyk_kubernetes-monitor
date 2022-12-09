@@ -1,0 +1,169 @@
+# Default values for snyk-monitor.
+
+# The snyk-monitor relies on several k8s secrets in order to be configured properly.
+# These secrets are named "snyk-monitor-secrets", though you can change the name.
+# The secrets should be created externally, before applying this Helm chart.
+# The currently used keys within the secret are: "dockercfg.json", "integrationId".
+monitorSecrets: snyk-monitor
+certsConfigMap: snyk-monitor-certs
+registriesConfConfigMap: snyk-monitor-registries-conf
+
+# An external ConfigMap to use for loading policies into snyk-monitor.
+# If not set, defaultWorkloadPoliciesMap will be used.
+workloadPoliciesMap: ""
+
+# A list of Snyk Organization public IDs to let snyk-monitor know in which Organization to auto-import and auto-delete scanned images.
+# This is used to populate the default workload policy file.
+policyOrgs: []
+
+# Default rego workload policies to install.
+# Setting `workloadPoliciesMap` will overwrite this.
+defaultWorkloadPoliciesMap: snyk-monitor-workload-policies
+
+# One of: Cluster, Namespaced
+# Cluster - creates a ClusterRole and ClusterRoleBinding with the ServiceAccount
+# Namespaced - creates a Role and RoleBinding with the ServiceAccount
+scope: Cluster
+
+# The endpoint that being used to transmit monitored information
+integrationApi: ""
+
+# The registry from which to pull the snyk-monitor image.
+image:
+  repository: snyk/kubernetes-monitor
+  tag: IMAGE_TAG_OVERRIDE_WHEN_PUBLISHING
+  pullPolicy: Always
+
+# If deploying in an air-gapped environment that can't pull from DockerHub, override the initContainer's image here for one that is accessible to your environment.
+initContainerImage:
+  repository: busybox
+  tag: latest
+
+# The snyk-monitor requires knowing the cluster name so that it can organise
+# scanned workloads. The Kubernetes API does not provide an API to query this.
+# Set the name of the cluster, otherwise the snyk-monitor will set this to a default value.
+clusterName: ""
+
+# The snyk-monitor requires disk storage to temporarily pull container images and to scan them for vulnerabilities.
+# This value controls how much disk storage _at most_ may be allocated for the snyk-monitor. Unless overridden by the `pvc` value, the snyk-monitor mounts an emptyDir for storage.
+temporaryStorageSize: 50Gi #  Applies to PVC too
+
+# Change "enabled" to true to use a PVC instead of emptyDir for local storage.
+# Change "create" to true if you want to create the PVC (useful for first time run).
+pvc:
+  enabled: false
+  name: snyk-monitor-pvc
+  create: false
+  ## snyk-monitor data Persistent Volume Storage Class
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is
+  ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+  ##   GKE, AWS & OpenStack)
+  ##
+  # storageClassName: "-"
+
+# Additional annotations for the Kubernetes ServiceAccount
+rbac:
+  serviceAccount:
+    annotations: {}
+
+# Node.js in-container process memory enhancements
+envs:
+  - name: V8_MAX_OLD_SPACE_SIZE
+    value: "2048"
+  - name: UV_THREADPOOL_SIZE
+    value: "24"
+  - name: NODE_OPTIONS
+    value: --max_old_space_size=2048
+
+extraCaCerts: /srv/app/certs/ca.pem
+
+# CPU/Mem requests and limits for snyk-monitor
+requests:
+  cpu: "250m"
+  memory: "400Mi"
+
+limits:
+  cpu: "1"
+  memory: "2Gi"
+
+http_proxy:
+https_proxy:
+no_proxy:
+use_keepalive: true
+skip_k8s_jobs:
+
+# Override default (INFO) log level if less verbosity needed
+log_level:
+
+nodeSelector: {}
+
+nodeAffinity:
+  disableBetaArchNodeSelector: false
+
+# Additional labels and annotations for the snyk-monitor Deployment's Pod
+metadata:
+  labels: {}
+  annotations: {}
+
+# Override the NetworkPolicy
+networkPolicy:
+  enabled: true
+  egress:
+  - {}
+
+# Override the excluded namespaces
+excludedNamespaces:
+
+# Allow specifying a fsGroup in the PodSpec securityContext:
+# spec:
+#   template:
+#     spec:
+#       securityContext:
+#         fsGroup: <-- here
+securityContext:
+  fsGroup:
+
+# Set node tolerations for snyk-monitor
+tolerations: []
+
+# A projected volume maps several existing volume sources into the same directory.
+# https://kubernetes.io/docs/concepts/storage/volumes/#projected
+volumes:
+  projected:
+    serviceAccountToken: false
+
+skopeo:
+  compression:
+    level: 6
+
+workers:
+  count: 5
+sysdig:
+  enabled: false
+  namespace: sysdig-agent
+  secretName: sysdig-eve-secret
+
+strategy:
+  type: RollingUpdate
+
+initContainers:
+  enabled: true
+
+# Additional volumes for the deployment, available to all containers
+extraVolumes: []
+#  - name: my-empty-dir
+#    emptyDir: {}
+
+# Additional volume mounts for the snyk-monitor container
+extraVolumeMounts: []
+#  - name: extras
+#    mountPath: /mnt/my-empty-dir
+#    readOnly: true
+
+# Additional init containers, templated
+extraInitContainers: []
+#  - name: wait-for-condition
+#    image: "{{ .Values.initContainerImage.repository }}:{{ .Values.initContainerImage.tag }}"
+#    command: ['sh', '-c', 'sleep 10 || :']

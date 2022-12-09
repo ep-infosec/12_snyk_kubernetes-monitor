@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: push-to-local-registry
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+        - name: docker-io
+      containers:
+        - name: my-container
+          image: docker.io/library/fedora:35
+          command: 
+            - "sh"
+          args:
+            - "-c"
+            - "dnf install -y skopeo &&
+            skopeo copy --dest-tls-verify=false docker://docker.io/library/python:rc-buster docker://kind-registry:5000/python:rc-buster"
+      restartPolicy: Never
+  backoffLimit: 4

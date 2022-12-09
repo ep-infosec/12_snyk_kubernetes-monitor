@@ -1,0 +1,40 @@
+{{ if .Values.excludedNamespaces }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-excluded-namespaces
+  labels:
+    app.kubernetes.io/name: {{ include "snyk-monitor.name" . }}
+    helm.sh/chart: {{ include "snyk-monitor.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  excludedNamespaces: |-
+    {{- range .Values.excludedNamespaces }}
+    {{ . }}
+    {{- end }}
+{{ end }}
+{{ if not .Values.workloadPoliciesMap }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.defaultWorkloadPoliciesMap }}
+  labels:
+    app.kubernetes.io/name: {{ include "snyk-monitor.name" . }}
+    helm.sh/chart: {{ include "snyk-monitor.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  workload-events.rego: |-
+    package snyk
+
+    orgs := {{ .Values.policyOrgs | toJson }}
+
+    default workload_events = false
+
+    workload_events {
+      input.kind != "Job"
+      input.kind != "Pod"
+    }
+{{ end }}

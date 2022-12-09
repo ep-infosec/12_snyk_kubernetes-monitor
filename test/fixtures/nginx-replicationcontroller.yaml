@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: nginx
+  namespace: services
+spec:
+  replicas: 1
+  selector:
+    app: nginx
+  template:
+    metadata:
+      name: nginx
+      labels:
+        app: nginx
+    spec:
+      imagePullSecrets:
+      - name: docker-io
+      containers:
+      - name: nginx
+        image: docker.io/library/nginx:latest
+        command:
+        - sleep
+        args:
+        - infinity
